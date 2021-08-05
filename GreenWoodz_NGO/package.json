@@ -1,0 +1,16 @@
+{
+  "name": "GreenWoodz_NGO",
+  "version": "1.0.0",
+  "description": "GreenWoodz lambda function for NGO",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "ZIP": "zip -r NgoLambda.zip ./",
+    "deploy": "aws s3 mv NgoLambda.zip s3://green-woodz-bucket"
+  },
+  "dependencies": {
+    "dynamodb-geo": "^0.4.0",
+    "dynamoose": "^2.7.3",
+    "uuid": "^8.3.2"
+  }
+}
