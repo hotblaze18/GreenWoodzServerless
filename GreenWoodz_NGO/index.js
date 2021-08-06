@@ -1,6 +1,6 @@
 const AWS = require('aws-sdk');
 const ddbGeo = require('dynamodb-geo');
-const { v4: uuidv4 } = require('uuid');
+// const { v4: uuidv4 } = require('uuid');
 
 const Ngo = require('./schema');
 const stateData = require('./statedata.json');
@@ -10,10 +10,10 @@ AWS.config.update({
 });
 
 const ddb = new AWS.DynamoDB();
-const table = 'NGO';
 
+//configure geo data manager
 const config = new ddbGeo.GeoDataManagerConfiguration(ddb, 'NgoGeoLocation');
-config.rangeKeyAttributeName = 'NgoId';
+config.rangeKeyAttributeName = 'NgoName';
 
 const GeoTableManager = new ddbGeo.GeoDataManager(config);
 
@@ -74,7 +74,17 @@ async function getNGOById(id) {
 /*
 ** Check if state and City are valid or not while creating Ngo.
 */
-function isValidStateAndCity(state, city) {
+function isValidStateAndCity(NgoData) {
+    let state = NgoData['State'];
+    let city = NgoData['City'];
+    if(typeof(state) !== "string" || typeof(city) !== "string")
+        return false;
+
+    state = state.toUpperCase();
+    city = city.charAt(0).toUpperCase() + city.slice(1);
+
+    NgoData['State'] = state;
+    NgoData['City'] = city;
 
     if(Object.keys(stateData).includes(state)) {
         if(stateData[state].includes(city)) {
@@ -89,22 +99,26 @@ function isValidStateAndCity(state, city) {
 */
 async function createNgo(NgoData) {
 
-    NgoData['State'] = NgoData['State'].toUpperCase();
-    NgoData['City'] = NgoData['City'].charAt(0) + NgoData['City'].slice(1);
-
-    if(isValidStateAndCity(NgoData['State'], NgoData['City']) === false) {
+    if(isValidStateAndCity(NgoData) === false) {
         return buildResponse(400, { 
             error: 'Incorrect Data Passed',
-            message: 'Value for City and State incorrect'
+            message: 'Value for City or State incorrect'
          });
     }
 
-    //generate a unique partition key
-    NgoData["id"] = uuidv4();
-
-    //add derived attribute of location which can act as range key
+    //add derived attribute of location which can act as partition key
     NgoData["Location"] = `${NgoData['State']}-${NgoData['City']}`;
+    //Add the Geo Location for the Ngo in database
+    try {
+        await putGeoLocation({ ngoName: NgoData['Name'], ngoLocation: NgoData['Location'] }, NgoData['GeoLocation']);
+    } catch(err) {
+        return buildResponse(400, {
+            message: "Problem with Geo Location data format",
+            error: err
+        });
+    }
 
+    //save the ngo data.
     const ngo = new Ngo(NgoData);
 
     try {
@@ -120,25 +134,24 @@ async function createNgo(NgoData) {
 }
 
 /*
-** Function to put 
+** Function to put the geo location in database.
 */
-async function putGeoLocation(ngoId, { latitude, longitude }) {
-    
-   GeoTableManager.putPoint({
-        RangeKeyValue: { S: ngoId }, // Use this to ensure uniqueness of the hash/range pairs.
+async function putGeoLocation(attributes, { latitude, longitude }) {
+   
+   const { ngoName, ngoLocation  } = attributes; 
+   await GeoTableManager.putPoint({
+        RangeKeyValue: { S: ngoName }, // Use this to ensure uniqueness of the hash/range pairs.
         GeoPoint: { // An object specifying latitutde and longitude as plain numbers. Used to build the geohash, the hashkey and geojson data
             latitude,
             longitude
         },
         PutItemInput: { // Passed through to the underlying DynamoDB.putItem request. TableName is filled in for you.
             Item: { // The primary key, geohash and geojson data is filled in for you
-                 // Specify attribute values using { type: value } objects, like the DynamoDB API.
+                "NgoLocation": { S: ngoLocation } // Specify attribute values using { type: value } objects, like the DynamoDB API.
             },
             // ... Anything else to pass through to `putItem`, eg ConditionExpression
         }
-    }).promise().then((res) => {
-        console.log(res);
-    });
+    }).promise();
 }
 
 
@@ -161,4 +174,4 @@ ddb.createTable(createTableInput).promise()
 }
 
 //createGeoLocationTable();
-// putGeoLocation('randomId', { latitude: 30.34, longitude: 41.27 });
+//putGeoLocation({ngoName: "Ngo1", ngoLocation: "Loc"}, { latitude: 30.34, longitude: 41.27 });

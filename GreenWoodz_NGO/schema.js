@@ -1,17 +1,13 @@
 const dynamoose = require('dynamoose');
 
 const NgoSchema = new dynamoose.Schema({
-    "id": {
-        type: String,
-        hashKey: true
-    },
     "Location": {
         type: String,
-        rangeKey: true
+        hashKey: true,
     },
     "Name": {
         type: String,
-        required: true
+        rangeKey: true
     },
     "State": {
         type: String,
@@ -28,6 +24,19 @@ const NgoSchema = new dynamoose.Schema({
     "Zip": {
         type: Number,
         required: true
+    },
+    "GeoLocation": {
+        type: Object,
+        schema: {
+            "longitude": {
+                type: Number,
+                required: true
+            },
+            "latitude": {
+                type: Number,
+                required: true
+            }
+        }
     },
     "Contact": {
         type: Object,

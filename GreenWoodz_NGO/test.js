@@ -16,7 +16,11 @@ const postNgoTestEvent = {
         "Address": "This is address.",
         "City": "Vadodara",
         "State": "Gujarat",
-        "Zip": 390010
+        "Zip": 390010,
+        "GeoLocation": {
+            "latitude": 37.23,
+            "longitude": 45.78
+        }
     }  
 }
 
@@ -24,7 +28,7 @@ const postNgoTestEvent = {
 //In AWS lambda these are event, content, and callback
 //event and content are JSON object and callback is a function
 //In my example i'm using empty JSON
-handler.handler( getNgoTestEvent, //event
+handler.handler( postNgoTestEvent, //event
     {}, //content
     function(data,ss) {  //callback function with two arguments 
         console.log(data);
